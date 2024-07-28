@@ -6,11 +6,11 @@ import chisel3.util.experimental.loadMemoryFromFile
 
 
 object wide {
-  val Byte = 0.U
-  val Half = 1.U
-  val Word = 2.U
-  val UByte = 4.U
-  val UHalf = 5.U
+  val Byte = "b000".U
+  val Half = "b001".U
+  val Word = "b010".U
+  val UByte = "b100".U
+  val UHalf = "b101".U 
 }
 
 import wide._
@@ -36,13 +36,13 @@ class DataMem extends Module {
 
   wa := MuxLookup(io.funct3,0.U(10.W),Seq(
     Byte -> io.waddr,
-    Half -> 0.U, // needs to be changed
-    Word -> 0.U, // needs to be changed
+    Half -> Cat(io.waddr(9,1),"b0".U), // needs to be changed
+    Word -> Cat(io.waddr(9,2),"b00".U), // needs to be changed
   ))
 
-  wd := MuxLookup(io.funct3,0.U,Seq(
-    Byte -> 0.U, // needs to be changed
-    Half -> 0.U, // needs to be changed
+  wd   := MuxLookup(io.funct3,0.U,Seq(
+    Byte -> io.wdata(7,0), // needs to be changed
+    Half -> io.wdata(15,0), // needs to be changed
     Word -> io.wdata,
   ))
 
@@ -50,17 +50,17 @@ class DataMem extends Module {
     when(io.funct3===Byte){
       memory(wa) := wd(7,0)
     }.elsewhen(io.funct3===Half){
-      //Please fill in the blanks by yourself
+      memory(wa) := wd(15,0)
     }.elsewhen(io.funct3===Word){
-      //Please fill in the blanks by yourself
+      memory(wa) := wd
     }
   }.otherwise{ //LOAD
     io.rdata := MuxLookup(io.funct3,0.S,Seq(
       Byte -> memory(io.raddr).asSInt,
-      Half -> 0.S, // needs to be changed
-      Word -> 0.S, // needs to be changed
-      UByte -> 0.S, // needs to be changed
-      UHalf -> 0.S // needs to be changed
+      Half -> memory(io.raddr(7,0)).asSInt, // needs to be changed
+      Word -> memory(io.raddr).asSInt, // needs to be changed
+      UByte -> memory(io.raddr).asSInt, // needs to be changed
+      UHalf -> memory(io.raddr).asSInt // needs to be changed
     ))
   }
 }

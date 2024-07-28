@@ -25,10 +25,15 @@ class Add_SuberTest (as : Add_Suber) extends PeekPokeTester(as){
 		val output = _signed(peek(as.io.out).toInt)
 
 		if(answer < -8 || answer > 7){
-          if(!expect(as.io.o_f,1)){pass = pass + 1}
+          if(!expect(as.io.o_f,1)){
+			pass = pass + 1
+			println("error!! in1 is :"+in1+"the in2 should be : "+in2)
+			println("error!! output is :"+output+"the answer should be : "+answer)
+			}
 		}else{
 		  //dtype of peek() is BigInt
           if(answer!=output){
+			  println("error!! output is :"+in1+"the answer should be : "+in2)
 			  println("error!! output is :"+output+"the answer should be : "+answer)
 			  pass = pass + 1
 		  }

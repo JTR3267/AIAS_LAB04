@@ -10,9 +10,15 @@ class PC extends Module {
         val offset = Input(UInt(32.W))
         val pc = Output(UInt(32.W))
     })
-
     val pcReg = RegInit(0.U(32.W))
-    pcReg := pcReg + 4.U
+    val offset = Cat(io.offset(31,2), 0.U(2.W))
+    when(io.brtaken || io.jmptaken){
+        pcReg := offset
+    }
+    .otherwise{
+        pcReg := pcReg + 4.U
+    }
+    
     io.pc := pcReg
 }
 

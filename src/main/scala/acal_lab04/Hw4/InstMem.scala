@@ -9,7 +9,7 @@ class InstMem extends Module {
     val raddr = Input(UInt(7.W))
     val rdata = Output(UInt(32.W))
   })
-  val memory = Mem(32, UInt(32.W))
+  val memory = Mem(64, UInt(32.W))
   loadMemoryFromFile(memory, "./src/main/resource/InstMem.txt",MemoryLoadFileType.Binary)
 
   io.rdata := memory((io.raddr>>2))

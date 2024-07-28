@@ -20,5 +20,6 @@ class topTest(dut:top) extends PeekPokeTester(dut){
 object topTest extends App{
     Driver.execute(args,()=>new top){
         c:top => new topTest(c)
+        
     }
 }

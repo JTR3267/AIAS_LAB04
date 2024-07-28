@@ -43,6 +43,7 @@ class top extends Module {
     alu.io.src1 := rf.io.rdata(0)
     alu.io.src2 := dc.io.imm.asUInt
     alu.io.funct3 := dc.io.funct3
+    alu.io.funct7 := dc.io.funct7
     alu.io.opcode := dc.io.opcode
 
     //Data Memory

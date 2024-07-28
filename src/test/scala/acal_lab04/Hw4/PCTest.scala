@@ -20,6 +20,8 @@ class PCTest(dut:PC) extends PeekPokeTester(dut){
             // println("pc_now = " + pc_now.toString)
             step(1)
             if(!expect(dut.io.pc, if(brtaken||jmptaken) 32 else (pc_now+4))){
+                println(s"PC test failed when brtaken = ${brtaken} and jmptaken = ${jmptaken}")
+                println(pc_now.toString)
                 pass = pass + 1
             }
         }
