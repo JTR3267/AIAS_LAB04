@@ -10,6 +10,8 @@ class Queue(val depth: Int) extends Module {
     val en      = Input(Bool())
     val dataIn  = Input(UInt(32.W))
     val dataOut = Output(UInt(32.W))
+    val empty   = Output(Bool())
+    val full    = Output(Bool())
   })
 
   val queue_mem = Mem(depth, UInt(32.W))
@@ -27,4 +29,6 @@ class Queue(val depth: Int) extends Module {
     }
   }
   io.dataOut := out
+  io.empty := head === tail
+  io.full := tail - head === depth.asUInt
 }

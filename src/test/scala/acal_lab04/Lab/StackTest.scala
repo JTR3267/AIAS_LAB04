@@ -14,8 +14,11 @@ class StackTestsOrig(c: Stack) extends PeekPokeTester(c) {
     val enable  = rnd.nextInt(2)
     val push    = rnd.nextInt(2)
     val pop     = rnd.nextInt(2)
+    val top     = rnd.nextInt(2)
     val dataIn  = rnd.nextInt(256)
-    println(s"enable $enable push $push pop $pop dataIn $dataIn")
+    val empty   = stack.isEmpty
+    val full    = stack.length == c.depth
+    println(s"enable $enable push $push pop $pop dataIn $dataIn top $top isempty $empty isfull $full")
     if (enable == 1) {
       dataOut = nxtDataOut
       if (push == 1 && stack.length < c.depth) {
@@ -32,8 +35,11 @@ class StackTestsOrig(c: Stack) extends PeekPokeTester(c) {
     poke(c.io.push,   push)
     poke(c.io.en,     enable)
     poke(c.io.dataIn, dataIn)
+    poke(c.io.peek,   top)
     step(1)
     expect(c.io.dataOut, dataOut)
+    expect(c.io.empty, stack.isEmpty)
+    expect(c.io.full, stack.length == c.depth)
   }
 }
 

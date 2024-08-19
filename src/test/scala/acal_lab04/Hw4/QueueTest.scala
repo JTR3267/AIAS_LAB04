@@ -30,6 +30,8 @@ class QueueTests(c: Queue) extends PeekPokeTester(c) {
     poke(c.io.dataIn, dataIn)
     step(1)
     expect(c.io.dataOut, dataOut)
+    expect(c.io.empty, queue.isEmpty)
+    expect(c.io.full, queue.length == c.depth)
   }
 }
 

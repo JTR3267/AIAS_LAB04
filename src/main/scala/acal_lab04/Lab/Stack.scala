@@ -9,8 +9,11 @@ class Stack(val depth: Int) extends Module {
     val push    = Input(Bool())
     val pop     = Input(Bool())
     val en      = Input(Bool())
+    val peek    = Input(Bool())
     val dataIn  = Input(UInt(32.W))
     val dataOut = Output(UInt(32.W))
+    val empty   = Output(Bool())
+    val full    = Output(Bool())
   })
 
   val stack_mem = Mem(depth, UInt(32.W))
@@ -27,7 +30,12 @@ class Stack(val depth: Int) extends Module {
     when (sp > 0.U) {
       out := stack_mem(sp - 1.U)
     }
+    when (io.peek) {
+      out := stack_mem(sp - 1.U)
+    }
   }
 
   io.dataOut := out
+  io.empty   := sp === 0.U
+  io.full    := sp === depth.asUInt
 }
