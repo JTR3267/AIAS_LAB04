@@ -7,23 +7,24 @@ class ShareBusTest(c: ShareBus) extends PeekPokeTester(c) {
     // Define address ranges
     val addrMap = Bus_Config.addrMap
 
-    // Test addresses for both slaves
-    val testAddresses = Seq(0x8000, 0x20000)
-
-    for (address <- testAddresses) {
+    for (t <- 0 until 16) {
+        val address = 32768 + rnd.nextInt(32768)
+        var expectedSelect = 0
         // Set the master signals
-        poke(c.io.masters(0).valid, true.B)
-        poke(c.io.masters(0).addr, address.U)
-        poke(c.io.masters(0).data, 0.U)
-        poke(c.io.masters(0).size, 0.U) // Adjust size as needed
+        poke(c.io.masters.valid, true.B)
+        poke(c.io.masters.addr,  address.U)
+        poke(c.io.masters.data,  0.U)
+        poke(c.io.masters.size,  0.U) // Adjust size as needed
 
         // Step the simulation
         step(1)
 
         // Check the slave selection
-        val expectedSelect = addrMap.zipWithIndex.collect {
-            case ((start, size), index) if address >= start && address < (start + size) => index
-        }.headOption.getOrElse(-1)
+        if (address >= 32768 && address < 42768) {
+            expectedSelect = 0 // Corresponds to the first range
+        } else if (address >= 65536 && address < 65536 + 32768) {
+            expectedSelect = 1 // Corresponds to the second range
+        }
 
         // Validate the select output
         if (expectedSelect >= 0) {
@@ -37,7 +38,7 @@ class ShareBusTest(c: ShareBus) extends PeekPokeTester(c) {
         }
 
         // Reset the master signals
-        poke(c.io.masters(0).valid, false.B)
+        poke(c.io.masters.valid, false.B)
         step(1)
     }
 }
@@ -48,7 +49,7 @@ object SharedBusTest extends App {
     val numMasters = Bus_Config.numMasters
     val numSlaves  = Bus_Config.numSlaves
     val addrMap    = Bus_Config.addrMap
-    Driver.execute(Array("-td","./generated","-tbn","verilator"), () => new ShareBus(addrWidth, dataWidth, numMasters, numSlaves, addrMap)) {
+    Driver.execute(Array("-td","./generated","-tbn","verilator","--full-stacktrace"), () => new ShareBus(addrWidth, dataWidth, numMasters, numSlaves, addrMap)) {
         c => new ShareBusTest(c)
     }
 }
