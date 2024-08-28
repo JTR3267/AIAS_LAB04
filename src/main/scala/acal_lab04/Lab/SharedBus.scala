@@ -49,22 +49,14 @@ class ShareBus( addrWidth: Int, dataWidth: Int, numSlaves: Int, val addrMap: Seq
 
     // Initialize signals
     for (i <- 0 until numSlaves) {
-      io.slaves(i).valid := 0.U
+      io.slaves(i).valid := io.masters.valid && decoders(i).io.select
       io.slaves(i).addr  := io.masters.addr
       io.slaves(i).data  := io.masters.data
       io.slaves(i).size  := io.masters.size
       decoders(i).io.addr := io.masters.addr
     }
 
-    io.masters.ready := io.slaves.map(_.ready).reduce(_ || _)
-
-    when(io.masters.valid) {
-      for (i <- 0 until numSlaves) {
-        when(decoders(i).io.select) {
-          io.slaves(i).valid := true.B
-        }
-      }
-    }
+    io.masters.ready := io.slaves.map(_.ready).reduce(_ || _) // OR all ready signals
 }
 
 class test ( addrWidth: Int, dataWidth: Int, val addrMap: Seq[(Int, Int)]) extends Module{
