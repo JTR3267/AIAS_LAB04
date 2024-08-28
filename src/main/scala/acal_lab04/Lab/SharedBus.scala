@@ -5,11 +5,11 @@ import chisel3.util._
 import chisel3.util.log2Ceil
 
 class MasterInterface(addrWidth: Int, dataWidth: Int) extends Bundle {
-    val valid = Output(Bool())
-    val ready = Input(Bool())
-    val addr = Output(UInt(addrWidth.W))
-    val data = Output(UInt(dataWidth.W))
-    val size = Output(UInt(3.W))
+    val valid = Input(Bool())
+    val ready = Output(Bool())
+    val addr = Input(UInt(addrWidth.W))
+    val data = Input(UInt(dataWidth.W))
+    val size = Input(UInt(3.W))
 }
 
 class SlaveInterface(addrWidth: Int, dataWidth: Int) extends Bundle {
@@ -20,88 +20,54 @@ class SlaveInterface(addrWidth: Int, dataWidth: Int) extends Bundle {
     val size = Output(UInt(3.W))
 }
 
-class Decoder(addrWidth: Int, numSlaves: Int, addrMap: Seq[(Int, Int)]) extends Module {
+class Decoder(addrWidth: Int, addrMap: Seq[(Int, Int)]) extends Module {
     val io = IO(new Bundle {
         val addr = Input(UInt(addrWidth.W))
-        val select = Output(UInt(addrMap.length.W))
+        val select = Output(Bool())
     })
-    val select = MuxCase(0.U, addrMap.zipWithIndex.map { case ((startAddress, size), index) =>
-        (io.addr >= startAddress.U && io.addr < (startAddress + size).U) -> index.U
-      }
-    )
+    val select = addrMap.zipWithIndex.foldLeft(false.B) { case (result, ((startAddress, size), index)) =>
+      result || (io.addr >= startAddress.U && io.addr < (startAddress + size).U)
+    }
     io.select := select
 }
 
 class ShareBus( addrWidth: Int, dataWidth: Int, numSlaves: Int, val addrMap: Seq[(Int, Int)]) extends Module {
   val io = IO(new Bundle {
     val masters = new MasterInterface(addrWidth, dataWidth)
-    // val slaves = Vec(numSlaves, new SlaveInterface(addrWidth, dataWidth))
-    val slaves = new SlaveInterface(addrWidth, dataWidth)
+    val slaves = Vec(numSlaves, new SlaveInterface(addrWidth, dataWidth))
   })
-    // Wire define
-    val masterReady = WireInit(false.B)
-    val masterValid = WireInit(false.B)
-    val masterAddr  = WireInit(0.U(addrWidth.W))
-    val masterData  = WireInit(0.U(dataWidth.W))
-    val masterSize  = WireInit(0.U(3.W))
-    val slaveSelect = WireInit(0.U)
     // decoder
-    val decoder = new Decoder(addrWidth, numSlaves, addrMap)
-    
-    // Initialize signals
-    // for (i <- 0 until numSlaves) {
-    //   io.slaves(i).valid := false.B
-    //   io.slaves(i).addr  := 0.U
-    //   io.slaves(i).data  := 0.U
-    //   io.slaves(i).size  := 0.U
-    //   io.slaves(i).ready := true.B
-    // }
-    io.slaves.valid := false.B
-    io.slaves.addr  := 0.U
-    io.slaves.data  := 0.U
-    io.slaves.size  := 0.U
-    io.slaves.ready := true.B
-
-    io.masters.ready := false.B
-    io.masters.addr  := 0.U
-    io.masters.data  := 0.U
-    io.masters.size  := 0.U
-    io.masters.valid := false.B
-    
-    decoder.io.addr := 0.U
-    decoder.io.select := 0.U
-    
-    when(io.masters.valid) {
-      // Connect master address to decoder
-      decoder.io.addr := io.masters.addr
-      // Connect master to wire
-      // io.masters.ready := io.slaves.map(_.ready).reduce(_ || _)
-      io.masters.ready := io.slaves.ready
-      masterValid := io.masters.valid
-      masterAddr  := io.masters.addr
-      masterData  := io.masters.data
-      masterSize  := io.masters.size
+    val decoders = Seq.tabulate(numSlaves) { i =>
+      Module(new Decoder(addrWidth, addrMap.slice(i, i+1)))
     }
 
-    // decoder select slave
-    
-    slaveSelect := decoder.io.select
+    // Initialize signals
+    for (i <- 0 until numSlaves) {
+      io.slaves(i).valid := decoders(i).io.select && io.masters.valid
+      io.slaves(i).addr  := io.masters.addr
+      io.slaves(i).data  := io.masters.data
+      io.slaves(i).size  := io.masters.size
+      decoders(i).io.addr := io.masters.addr
+    }
 
-    
-    
-    // Connect slave to wire
-    // when(masterValid) {
-    //   io.slaves(slaveSelect).valid := masterValid
-    //   io.slaves(slaveSelect).addr  := masterAddr
-    //   io.slaves(slaveSelect).data  := masterData
-    //   io.slaves(slaveSelect).size  := masterSize
-    //   io.slaves(slaveSelect).ready := true.B
-    // }
-      io.slaves.valid := masterValid
-      io.slaves.addr  := masterAddr
-      io.slaves.data  := masterData
-      io.slaves.size  := masterSize
-      io.slaves.ready := true.B
+    io.masters.ready := io.slaves.map(_.ready).reduce(_ || _)
 
 }
 
+class test ( addrWidth: Int, dataWidth: Int, val addrMap: Seq[(Int, Int)]) extends Module{
+  val io = IO(new Bundle {
+    val masters = new MasterInterface(addrWidth, dataWidth)
+    val slaves = new SlaveInterface(addrWidth, dataWidth)
+  })
+  val decoder = Module(new Decoder(addrWidth, addrMap))
+  
+  // Initialize signals
+  io.masters.ready := io.slaves.ready
+
+  io.slaves.valid := decoder.io.select && io.masters.valid
+  io.slaves.addr := io.masters.addr
+  io.slaves.data := io.masters.data
+  io.slaves.size := io.masters.size
+
+  decoder.io.addr := io.masters.addr
+}
