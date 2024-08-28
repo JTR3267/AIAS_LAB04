@@ -34,7 +34,7 @@ class ShareBusTest(c: ShareBus) extends PeekPokeTester(c) {
         } 
 
         // Reset the master signals
-        poke(c.io.masters.valid, false.B)
+        poke(c.io.slaves(expectedSelect).ready, true.B)
         step(1)
     }
 }
@@ -45,7 +45,7 @@ object SharedBusTest extends App {
     val numMasters = Bus_Config.numMasters
     val numSlaves  = Bus_Config.numSlaves
     val addrMap    = Bus_Config.addrMap
-    Driver.execute(Array("-td","./generated","-tbn","verilator"), () => new ShareBus(addrWidth, dataWidth, numSlaves, addrMap)) {
+    Driver.execute(Array("-td","./generated"), () => new ShareBus(addrWidth, dataWidth, numSlaves, addrMap)) {
         c => new ShareBusTest(c)
     }
 }
