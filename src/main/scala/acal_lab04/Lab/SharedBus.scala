@@ -35,8 +35,8 @@ class Decoder(addrWidth: Int, addrMap: Seq[(Int, Int)]) extends Module {
 
 class ShareBus( addrWidth: Int, dataWidth: Int, numSlaves: Int, val addrMap: Seq[(Int, Int)]) extends Module {
   val io = IO(new Bundle {
-    val masters = Flipped(Decoupled(new MasterInterface_(addrWidth, dataWidth)))
-    val slaves = Vec(numSlaves, Decoupled(new SlaveInterface_(addrWidth, dataWidth)))
+    val masters = Flipped(Decoupled(new MasterInterface(addrWidth, dataWidth)))
+    val slaves = Vec(numSlaves, Decoupled(new SlaveInterface(addrWidth, dataWidth)))
   })
     // decoder
     val decoders = Seq.tabulate(numSlaves) { i =>
