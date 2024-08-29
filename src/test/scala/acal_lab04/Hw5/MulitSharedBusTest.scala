@@ -15,69 +15,69 @@ class MultiShareBusTest(c: MultiShareBus) extends PeekPokeTester(c) {
     val request    = Array.fill(numMasters)(scala.collection.mutable.Queue[ExpectedValue]())
     val answer     = Array.fill(numSlaves, mem_range)((0))
     val receiverd  = Array.fill(numSlaves, mem_range)((0))
-
+    
+    // Randomly generate requests
     for(t <- 0 until 100) {
-        // Set the master signals
         for(i <- 0 until numMasters) {
             val address = 32768 + rnd.nextInt(30000)
             val data    = rnd.nextInt(100)
             request(i).enqueue(ExpectedValue(address, data))
         }
-
-        // Input to design
-        while(request.exists(_.nonEmpty)) {
-            for(i <- 0 until numMasters) {
-                val valid = rnd.nextBoolean() // Randomly set valid signal
-                if(request(i).nonEmpty) {
-                    val req = request(i).front
-                    poke(c.io.masters(i).valid, valid.B)
-                    poke(c.io.masters(i).bits.addr, req.address.U)
-                    poke(c.io.masters(i).bits.data, req.data.U)
-                    poke(c.io.masters(i).bits.size, 0.U)
-                    if(valid) {
-                        // println(s"Master $i: Address ${req.address} is valid with data ${req.data}")
-                        for(j <- 0 until numSlaves){
-                            for(k <- 0 until mem_range){
-                                if(addrMap(j)._1 <= req.address && req.address < addrMap(j)._1 + addrMap(j)._2) {
-                                    answer(j)(k) = req.data.toInt
-                                }
+    }
+    
+    // Input to design
+    while(request.exists(_.nonEmpty)) {
+        for(i <- 0 until numMasters) {
+            val valid = rnd.nextBoolean() // Randomly set valid signal
+            if(request(i).nonEmpty) {
+                val req = request(i).front
+                poke(c.io.masters(i).valid, valid.B)
+                poke(c.io.masters(i).bits.addr, req.address.U)
+                poke(c.io.masters(i).bits.data, req.data.U)
+                poke(c.io.masters(i).bits.size, 0.U)
+                if(valid) {
+                    // println(s"Master $i: Address ${req.address} is valid with data ${req.data}")
+                    for(j <- 0 until numSlaves){
+                        for(k <- 0 until mem_range){
+                            if(addrMap(j)._1 <= req.address && req.address < addrMap(j)._1 + addrMap(j)._2) {
+                                answer(j)(k) = req.data.toInt
                             }
-                            
                         }
-                    } else{
-                        request(i).dequeue()
+                        
                     }
-                    
-                } 
-                else {
-                    poke(c.io.masters(i).valid, false.B)
-                    // request(i).dequeue()
-                }
-            }
-            
-            step(1)
-
-            for(j <- 0 until numSlaves) {
-                for(k <- 0 until mem_range){
-                    if(peek(c.io.slaves(j).valid) == 1) {
-                        receiverd(j)(k) = peek(c.io.slaves(j).bits.data).toInt
-                        poke(c.io.slaves(j).ready, true.B)
-                        // println(s"Slave $j: Address ${peek(c.io.slaves(j).bits.addr)} is ready with data ${peek(c.io.slaves(j).bits.data)}")
-                    }
-                }
-            }
-
-            step(1)
-
-            for(i <- 0 until numMasters){
-                if (peek(c.io.masters(i).ready) == 1 && request(i).nonEmpty) {
+                } else{
                     request(i).dequeue()
                 }
+                
+            } 
+            else {
+                poke(c.io.masters(i).valid, false.B)
+                // request(i).dequeue()
             }
+        }
+        
+        step(1)
 
+        for(j <- 0 until numSlaves) {
+            for(k <- 0 until mem_range){
+                if(peek(c.io.slaves(j).valid) == 1) {
+                    receiverd(j)(k) = peek(c.io.slaves(j).bits.data).toInt
+                    poke(c.io.slaves(j).ready, true.B)
+                    // println(s"Slave $j: Address ${peek(c.io.slaves(j).bits.addr)} is ready with data ${peek(c.io.slaves(j).bits.data)}")
+                }
+            }
+        }
+
+        step(1)
+
+        for(i <- 0 until numMasters){
+            if (peek(c.io.masters(i).ready) == 1 && request(i).nonEmpty) {
+                request(i).dequeue()
+            }
         }
 
     }
+
     var correct = 0
     for (i <- 0 until numSlaves) {
         for (j <- 0 until mem_range) {
@@ -91,9 +91,48 @@ class MultiShareBusTest(c: MultiShareBus) extends PeekPokeTester(c) {
         }
     }
     if (correct == numSlaves * mem_range) {
-        println("Test Passed")
+        println("⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣶⣿⣶⣦⣄⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣤⣶⣾⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀")
+        println("⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⠿⠿⠿⣿⣿⣿⣿⠿⠿⠿⢿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀")
+        println("⠀⠀⠀⠀⠀⢀⡀⣄⠀⠀⠀⠀⠀⠀⠀⣿⣿⠟⠉⠀⢀⣀⠀⠀⠈⠉⠀⠀⣀⣀⠀⠀⠙⢿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀")
+        println("⠀⠀⠀⣀⣶⣿⣿⣿⣾⣇⠀⠀⠀⠀⢀⣿⠃⠀⠀⠀⠀⢀⣀⡀⠀⠀⠀⣀⡀⠀⠀⠀⠀⠀⠹⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀")
+        println("⠀⠀⠀⢻⣿⣿⣿⣿⣿⣿⣷⣄⠀⠀⣼⡏⠀⠀⠀⣀⣀⣉⠉⠩⠭⠭⠭⠥⠤⢀⣀⣀⠀⠀⠀⢻⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀")
+        println("⠀⠀⠀⣸⣿⣿⣿⣿⣿⣿⣿⣿⣷⣄⣿⠷⠒⠋⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠑⠒⠼⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀")
+        println("⠀⠀⠀⢹⣿⣿⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣦⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀")
+        println("⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣷⣦⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀")
+        println("⠀⠀⠀⠈⣿⣿⣿⣿⣿⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣷⣄⠀⠀⠀⠀⠀⠀")
+        println("⠀⠀⠀⠀⢹⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣷⣄⠀⠀⠀⠀⠀⠀")
+        println("⠀⠀⠀⠀⠀⣿⣿⣿⣿⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⣿⣿⣿⣿⣿⣧⡀⠀⠀⠀⠀")
+        println("⠀⠀⠀⠀⢠⣿⣿⣿⣿⣿⣶⣤⣄⣠⣤⣤⣶⣶⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣶⣶⣶⣶⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⠀⠀⠀⠀")
+        println("⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀")
+        println("⠀⠀⣀⠀⢸⡿⠿⣿⡿⠋⠉⠛⠻⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠉⠀⠻⠿⠟⠉⢙⣿⣿⣿⣿⣿⣿⡇⠀")
+        println("⠀⠀⢿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠁⠀⠀⠀⠀⠀⠀⠀⠈⠻⠿⢿⡿⣿⠳⠀⠀")
+        println("⠀⠀⡞⠛⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣇⡀⠀⠀⠀")
+        println("⢀⣸⣀⡀⠀⠀⠀⠀⣠⣴⣾⣿⣷⣆⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⣰⣿⣿⣿⣿⣷⣦⠀⠀⠀⠀⢿⣿⠿⠃⠀⠀")
+        println("⠘⢿⡿⠃⠀⠀⠀⣸⣿⣿⣿⣿⣿⡿⢀⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡀⢻⣿⣿⣿⣿⣿⣿⠂⠀⠀⠀⡸⠁⠀⠀⠀⠀")
+        println("⠀⠀⠳⣄⠀⠀⠀⠹⣿⣿⣿⡿⠛⣠⠾⠿⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠿⠿⠳⣄⠙⠛⠿⠿⠛⠉⠀⠀⣀⠜⠁⠀⠀⠀⠀⠀")
+        println("⠀⠀⠀⠈⠑⠢⠤⠤⠬⠭⠥⠖⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠒⠢⠤⠤⠤⠒⠊⠁⠀⠀⠀⠀⠀⠀")
+        println(" ######     ##      #####    #####")
+        println("  ##  ##   ####    ##   ##   ##   ")
+        println("  ##  ##  ##  ##   #        #")
+        println("  #####   ##  ##    #####    #####")
+        println("  ##      ######        ##       ##")
+        println("  ##      ##  ##   ##   ##  ##   ##")
+        println(" ####     ##  ##    #####    #####")
     } else {
-        println("Test Failed")
+        println("░░░▐▀▀▄█▀▀▀▀▀▒▄▒▀▌░░░░")
+        println("░░░▐▒█▀▒▒▒▒▒▒▒▒▀█░░░░░")
+        println("░░░░█▒▒▒▒▒▒▒▒▒▒▒▀▌░░░░")
+        println("░░░░▌▒██▒▒▒▒██▒▒▒▐░░░░")
+        println("░░░░▌▒▒▄▒██▒▄▄▒▒▒▐░░░░")
+        println("░░░▐▒▒▒▀▄█▀█▄▀▒▒▒▒█▄░░")
+        println("░░░▀█▄▒▒▐▐▄▌▌▒▒▄▐▄▐░░░")
+        println("░░▄▀▒▒▄▒▒▀▀▀▒▒▒▒▀▒▀▄░░")
+        println("░░█▒▀█▀▌▒▒▒▒▒▄▄▄▐▒▒▐░░")
+        println("░░░▀▄▄▌▌▒▒▒▒▐▒▒▒▀▒▒▐░░")
+        println("░░░░░░░▐▌▒▒▒▒▀▄▄▄▄▄▀░░")
+        println("░░░░░░░░▐▄▒▒▒▒▒▒▒▒▐░░░")
+        println("░░░░░░░░▌▒▒▒▒▄▄▒▒▒▐░░░")
+        println("Failed")
     }
 }
 
