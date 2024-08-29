@@ -5,17 +5,19 @@ import chisel3.iotesters.{PeekPokeTester, Driver, ChiselFlatSpec}
 import chisel3.experimental.BundleLiterals._
 
 
-class ShareBusTest(c: ShareBus) extends PeekPokeTester(c) {
+class MultiShareBusTest(c: MultiShareBus) extends PeekPokeTester(c) {
     // Define address ranges
-    val addrMap = Lab_Config.addrMap
+    val addrMap = Hw_Config.addrMap
 
     for(t <- 0 until 16) {
         val address = 32768 + rnd.nextInt(20000)
         // Set the master signals
-        poke(c.io.masters.valid, true.B)
-        poke(c.io.masters.bits.addr, address)
-        poke(c.io.masters.bits.data, 0.U)
-        poke(c.io.masters.bits.size, 0.U) // Adjust size as needed
+        // for(i <- 0 until c.numMasters) {
+            poke(c.io.masters.valid, true.B)
+            poke(c.io.masters.bits.addr, address)
+            poke(c.io.masters.bits.data, 0.U)
+            poke(c.io.masters.bits.size, 0.U) // Adjust size as needed
+        // }
 
         // Step the simulation
         step(1)
@@ -39,26 +41,25 @@ class ShareBusTest(c: ShareBus) extends PeekPokeTester(c) {
     }
 }
 
-object SharedBusTest extends App {
-    val addrWidth  = Lab_Config.addr_width
-    val dataWidth  = Lab_Config.data_width
-    val numMasters = Lab_Config.numMasters
-    val numSlaves  = Lab_Config.numSlaves
-    val addrMap    = Lab_Config.addrMap
-    Driver.execute(Array("-td","./generated"), () => new ShareBus(addrWidth, dataWidth, numSlaves, addrMap)) {
-        c => new ShareBusTest(c)
+object MultiShareBusTest extends App {
+    val addrWidth  = Hw_Config.addr_width
+    val dataWidth  = Hw_Config.data_width
+    val numMasters = Hw_Config.numMasters
+    val numSlaves  = Hw_Config.numSlaves
+    val addrMap    = Hw_Config.addrMap
+    Driver.execute(Array("-td","./generated"), () => new MultiShareBus(addrWidth, dataWidth,numMasters, numSlaves, addrMap)) {
+        c => new MultiShareBusTest(c)
     }
 }
 
-object Lab_Config {
+object Hw_Config {
   val numMasters = 1 // number of masters
   val numSlaves  = 2 // number of slaves
   val addr_width = 16
   val data_width = 16
-  // allocation of 2 slaves in memory space
   val addrMap = Seq(
-      (32768, 10000), // Range 1: 32768 to 42768
-      (42768, 10000)  // Range 2: 42768 to 52768
+      (32768, 10000), 
+      (42768, 10000),
+    //   (52768, 10000)  
   )
 }
-
