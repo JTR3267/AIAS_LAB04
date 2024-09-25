@@ -15,22 +15,5 @@ class Add_Suber extends Module{
 
   //please implement your code below
 
-  val fullAdder = Seq.fill(4)(Module(new FullAdder).io) //full adder
-
-  val carry = Wire(Vec(5, UInt(1.W))) //carry out 
-  val sum = Wire(Vec(4, UInt(1.W))) //sum
-
-  carry(0) := io.op //carry in 
-
-  for(i <- 0 until 4){ //4bit adder
-    fullAdder(i).A := io.in_1(i)
-    fullAdder(i).B := io.in_2(i) ^ io.op //XOR
-    fullAdder(i).Cin := carry(i)
-    carry(i+1) := fullAdder(i).Cout
-    sum(i) := fullAdder(i).Sum
-  }
-
-  io.out := sum.asUInt //output
-  io.o_f := carry(4) ^ carry(3) //overflow flag
 
 }
