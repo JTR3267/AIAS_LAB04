@@ -29,6 +29,8 @@ class Booth_Mul(width:Int) extends Module {
     val y = Wire(UInt(3.W))
     if (i == 0) {
       y := Cat(io.in2(1, 0), 0.U(1.W))
+    } else if ((i == (width + 1) / 2 - 1) && width % 2 == 1) {
+      y := Cat(0.U(1.W), io.in2(2 * i, 2 * i - 1))
     } else {
       y := io.in2(2 * i + 1, 2 * i - 1)
     }
@@ -60,6 +62,6 @@ class Booth_Mul(width:Int) extends Module {
       }
     }
   }
-  
+
   io.out := out.reduce(_ +& _)
 }
