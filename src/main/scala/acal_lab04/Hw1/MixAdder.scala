@@ -14,14 +14,17 @@ class MixAdder (n:Int) extends Module{
   //please implement your code below
   val CLA_Array = Array.fill(n)(Module(new CLAdder()).io)
   val carry = Wire(Vec(n+1, UInt(1.W)))
+  // 每個 sum 都是 4 bits
   val sum   = Wire(Vec(n, UInt(4.W)))
 
   carry(0) := io.Cin
 
   for (i <- 0 until n) {
+    // 取 4 bits
     CLA_Array(i).in1 := io.in1(4*i+3, 4*i)
     CLA_Array(i).in2 := io.in2(4*i+3, 4*i)
     CLA_Array(i).Cin := carry(i)
+    // 更新 carry
     carry(i+1) := CLA_Array(i).Cout
     sum(i) := CLA_Array(i).Sum
   }

@@ -14,13 +14,16 @@ class Add_Suber extends Module{
   })
 
   //please implement your code below
+  // 實際 in2
   val in2 = Wire(UInt(4.W))
+  // 抓 2's complemnt 後 overflow
   val o_f = Wire(UInt(1.W))
   o_f := 0.U
 
   when(io.op){
     //SUB
     in2 := ~io.in_2 + 1.U
+    // -8 做 2's complemnt 後會 overflow
     when(in2(3) & io.in_2(3)){
       o_f := 1.U
     }
