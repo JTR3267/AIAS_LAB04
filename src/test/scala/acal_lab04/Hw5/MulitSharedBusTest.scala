@@ -27,7 +27,7 @@ class MultiShareBusTest(c: MultiShareBus) extends PeekPokeTester(c) {
     
     // Input to design
     while(request.exists(_.nonEmpty)) {
-        for(i <- 0 until numMasters) {
+        (0 until numMasters).par.foreach { i =>
             val valid = rnd.nextBoolean() // Randomly set valid signal
             if(request(i).nonEmpty) {
                 val req = request(i).front
@@ -43,14 +43,11 @@ class MultiShareBusTest(c: MultiShareBus) extends PeekPokeTester(c) {
                                 answer(j)(k) = req.data.toInt
                             }
                         }
-                        
-                    }
-                } else{
-                    request(i).dequeue()
                 }
-                
-            } 
-            else {
+                } else {
+                    request(i).dequeue()
+                } 
+            } else {
                 poke(c.io.masters(i).valid, false.B)
                 // request(i).dequeue()
             }
