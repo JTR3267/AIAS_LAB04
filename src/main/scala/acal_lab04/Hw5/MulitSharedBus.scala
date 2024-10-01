@@ -4,6 +4,39 @@ import chisel3._
 import chisel3.util._
 import chisel3.util.log2Ceil
 
+class RoundRobinArbiter[T <: Data](gen: T, numIn: Int) extends Module {
+  val io = IO(new ArbiterIO(gen, numIn))
+  // record last out index, init to 0
+  val last_out = RegInit(0.U(log2Ceil(numIn).W))
+  // init chosen, out.bits
+  io.chosen := 0.U
+  io.out.bits := io.in(0).bits
+  // record chosen result, init to all false
+  val grants = Wire(Vec(numIn, Bool()))
+  for (i <- 0 until numIn) {
+    grants(i) := false.B
+  }
+  // init io.in.ready to 0
+  for (i <- 0 until numIn) {
+    io.in(i).ready := 0.U
+  }
+  
+  // loop and get out index by rr
+  for (i <- 0 until numIn) {
+    val index = (last_out + numIn.U - i.U) % numIn.U
+    when(io.in(index).valid) {
+      io.chosen := index
+      io.out.bits := io.in(index).bits
+      grants(index) := true.B
+      last_out := index
+    } .otherwise {
+      grants(index) := false.B
+    }
+  }
+
+  // set out.valid to true if at least 1 in is valid
+  io.out.valid := grants.asUInt.orR
+}
 
 class MultiShareBus(val addrWidth: Int,val dataWidth: Int,val numMasters: Int,val numSlaves: Int, val addrMap: Seq[(Int, Int)]) extends Module {
   val io = IO(new Bundle {
@@ -12,7 +45,7 @@ class MultiShareBus(val addrWidth: Int,val dataWidth: Int,val numMasters: Int,va
   })
 
   // round robin arbiter
-  val arbiter = Module(new RRArbiter(new MasterInterface(addrWidth, dataWidth), numMasters))
+  val arbiter = Module(new RoundRobinArbiter(new MasterInterface(addrWidth, dataWidth), numMasters))
   // connect masters to rrarbiter
   for (i <- 0 until numMasters) {
     arbiter.io.in(i) <> io.masters(i)
@@ -33,13 +66,6 @@ class MultiShareBus(val addrWidth: Int,val dataWidth: Int,val numMasters: Int,va
   }
 
   arbiter.io.out.ready := io.slaves.map(_.ready).reduce(_ || _) // OR all ready signals
-
   // pass ready signal to the chosen master
-  for (i <- 0 until numMasters) {
-    when (arbiter.io.chosen === i.U) {
-      io.masters(i).ready := arbiter.io.out.ready
-    } .otherwise {
-      io.masters(i).ready := 0.U // 不 set 0 會錯
-    }
-  }
+  io.masters(arbiter.io.chosen).ready := arbiter.io.out.ready
 }
