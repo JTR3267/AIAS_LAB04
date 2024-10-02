@@ -6,19 +6,21 @@ import chisel3.util.log2Ceil
 
 class RoundRobinArbiter[T <: Data](gen: T, numIn: Int) extends Module {
   val io = IO(new ArbiterIO(gen, numIn))
+
   // record last out index, init to 0
   val last_out = RegInit(0.U(log2Ceil(numIn).W))
-  // init chosen, out.bits
-  io.chosen := 0.U
-  io.out.bits := io.in(0).bits
   // record chosen result, init to all false
   val grants = Wire(Vec(numIn, Bool()))
   for (i <- 0 until numIn) {
     grants(i) := false.B
   }
-  // init io.in.ready to 0
+
+  // init chosen, out.bits
+  io.chosen := 0.U
+  io.out.bits := io.in(0).bits
+  // init io.in.ready to false
   for (i <- 0 until numIn) {
-    io.in(i).ready := 0.U
+    io.in(i).ready := false.B
   }
   
   // loop and get out index by rr
@@ -38,6 +40,25 @@ class RoundRobinArbiter[T <: Data](gen: T, numIn: Int) extends Module {
   io.out.valid := grants.asUInt.orR
 }
 
+class MyDecoder(addrWidth: Int, addrMap: Seq[(Int, Int)]) extends Module {
+    val io = IO(new Bundle {
+      val addr = Input(UInt(addrWidth.W))
+      val select = Output(Bool())
+    })
+    // init select to false
+    val select = WireInit(false.B)
+
+    // iterate the map
+    for ((startAddress, size) <- addrMap) {
+      // set select to true if any of the address is in the range
+      when(io.addr >= startAddress.U && io.addr < (startAddress + size).U) {
+        select := true.B
+      }
+    }
+    
+    io.select := select
+}
+
 class MultiShareBus(val addrWidth: Int,val dataWidth: Int,val numMasters: Int,val numSlaves: Int, val addrMap: Seq[(Int, Int)]) extends Module {
   val io = IO(new Bundle {
     val masters = Vec(numMasters, Flipped(Decoupled(new MasterInterface(addrWidth, dataWidth))))
@@ -53,7 +74,7 @@ class MultiShareBus(val addrWidth: Int,val dataWidth: Int,val numMasters: Int,va
   
   // decoder
   val decoders = Seq.tabulate(numSlaves) { i =>
-    Module(new Decoder(addrWidth, addrMap.slice(i, i+1)))
+    Module(new MyDecoder(addrWidth, addrMap.slice(i, i+1)))
   }
 
   // Initialize signals
