@@ -9,15 +9,12 @@ class RoundRobinArbiter[T <: Data](gen: T, numIn: Int) extends Module {
 
   // record last out index, init to 0
   val last_out = RegInit(0.U(log2Ceil(numIn).W))
-  // record chosen result, init to all false
-  val grants = Wire(Vec(numIn, Bool()))
-  for (i <- 0 until numIn) {
-    grants(i) := false.B
-  }
 
   // init chosen, out.bits
   io.chosen := 0.U
   io.out.bits := io.in(0).bits
+  // init out.valid to false
+  io.out.valid := false.B
   // init io.in.ready to false
   for (i <- 0 until numIn) {
     io.in(i).ready := false.B
@@ -26,37 +23,34 @@ class RoundRobinArbiter[T <: Data](gen: T, numIn: Int) extends Module {
   // loop and get out index by rr
   for (i <- 0 until numIn) {
     val index = (last_out + numIn.U - i.U) % numIn.U
+    // if any io.in is valid, update io.chosen and io.out.valid to true
     when(io.in(index).valid) {
       io.chosen := index
-      io.out.bits := io.in(index).bits
-      grants(index) := true.B
+      io.out.valid := true.B
+      // record last_out
       last_out := index
-    } .otherwise {
-      grants(index) := false.B
     }
   }
 
-  // set out.valid to true if at least 1 in is valid
-  io.out.valid := grants.asUInt.orR
+  // delay one cycle to update io.in.ready, caused by one cycle delay of io.out.ready update
+  io.in(RegNext(io.chosen)).ready := RegNext(io.out.ready)
 }
 
 class MyDecoder(addrWidth: Int, addrMap: Seq[(Int, Int)]) extends Module {
-    val io = IO(new Bundle {
-      val addr = Input(UInt(addrWidth.W))
-      val select = Output(Bool())
-    })
-    // init select to false
-    val select = WireInit(false.B)
+  val io = IO(new Bundle {
+    val addr = Input(UInt(addrWidth.W))
+    val select = Output(Bool())
+  })
+  // init select to false
+  io.select := false.B
 
-    // iterate the map
-    for ((startAddress, size) <- addrMap) {
-      // set select to true if any of the address is in the range
-      when(io.addr >= startAddress.U && io.addr < (startAddress + size).U) {
-        select := true.B
-      }
+  // iterate the map
+  for ((startAddress, size) <- addrMap) {
+    // set select to true if any of the address is in the range
+    when(io.addr >= startAddress.U && io.addr < (startAddress + size).U) {
+      io.select := true.B
     }
-    
-    io.select := select
+  }
 }
 
 class MultiShareBus(val addrWidth: Int,val dataWidth: Int,val numMasters: Int,val numSlaves: Int, val addrMap: Seq[(Int, Int)]) extends Module {
@@ -67,9 +61,14 @@ class MultiShareBus(val addrWidth: Int,val dataWidth: Int,val numMasters: Int,va
 
   // round robin arbiter
   val arbiter = Module(new RoundRobinArbiter(new MasterInterface(addrWidth, dataWidth), numMasters))
-  // connect masters to rrarbiter
   for (i <- 0 until numMasters) {
-    arbiter.io.in(i) <> io.masters(i)
+    // connect masters' valid, ready to arbiter
+    arbiter.io.in(i).valid <> io.masters(i).valid
+    arbiter.io.in(i).ready <> io.masters(i).ready
+    // set arbiter.io.in.bits to 0, dont care
+    arbiter.io.in(i).bits.addr := 0.U
+    arbiter.io.in(i).bits.data := 0.U
+    arbiter.io.in(i).bits.size := 0.U
   }
   
   // decoder
@@ -77,16 +76,15 @@ class MultiShareBus(val addrWidth: Int,val dataWidth: Int,val numMasters: Int,va
     Module(new MyDecoder(addrWidth, addrMap.slice(i, i+1)))
   }
 
-  // Initialize signals
+  // Output dicision mux
   for (i <- 0 until numSlaves) {
-    decoders(i).io.addr := arbiter.io.out.bits.addr
+    decoders(i).io.addr := io.masters(arbiter.io.chosen).bits.addr
     io.slaves(i).valid := arbiter.io.out.valid && decoders(i).io.select
-    io.slaves(i).bits.addr := arbiter.io.out.bits.addr
-    io.slaves(i).bits.data := arbiter.io.out.bits.data
-    io.slaves(i).bits.size := arbiter.io.out.bits.size
+    io.slaves(i).bits.addr := io.masters(arbiter.io.chosen).bits.addr
+    io.slaves(i).bits.data := io.masters(arbiter.io.chosen).bits.data
+    io.slaves(i).bits.size := io.masters(arbiter.io.chosen).bits.size
   }
 
+  // set arbiter.io.out.ready to update io.masters(arbiter.io.chosen).ready
   arbiter.io.out.ready := io.slaves.map(_.ready).reduce(_ || _) // OR all ready signals
-  // pass ready signal to the chosen master
-  io.masters(arbiter.io.chosen).ready := arbiter.io.out.ready
 }
