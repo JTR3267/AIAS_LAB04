@@ -15,13 +15,18 @@ class QueueTests(c: Queue) extends PeekPokeTester(c) {
     val pop     = rnd.nextInt(2)
     val dataIn  = rnd.nextInt(256)
     println(s"enable $enable push $push pop $pop dataIn $dataIn")
+    
     if (enable == 1) {
-      dataOut = nxtDataOut
-      if (push == 1) {
+      if (pop == 1 && queue.length > 0) {
+        queue.dequeue()
+      } else if (pop == 0 && push == 1 && queue.length < 8){
         queue.enqueue(dataIn)
-      } else if (pop == 1 && queue.length > 0) {
-        nxtDataOut = queue.dequeue()
       }
+    }
+    if (queue.length > 0) {
+      dataOut = queue.front
+    } else {
+      dataOut = 0
     }
 
     poke(c.io.pop,    pop)
