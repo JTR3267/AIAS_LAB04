@@ -23,7 +23,11 @@ class QueueTests(c: Queue) extends PeekPokeTester(c) {
         queue.enqueue(dataIn)
       }
     }
-    dataOut = queue.front
+    if (queue.length > 0) {
+      dataOut = queue.front
+    } else {
+      dataOut = 0
+    }
 
     poke(c.io.pop,    pop)
     poke(c.io.push,   push)
