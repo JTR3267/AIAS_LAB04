@@ -24,26 +24,30 @@ class Queue(val depth: Int) extends Module {
   val count          = RegInit(0.U(log2Ceil(depth+1).W))
   // io.dataOut
   val out            = RegInit(0.U(32.W))
-  // delay io.dataOut update until next io.en
-  val pop_occurred   = RegInit(false.B)
 
   when (io.en) {
-    when(pop_occurred) {
-      // update io.dataOut
-      out := queue_mem((head + depth.asUInt - 1.U) % depth.asUInt)
-      pop_occurred := false.B
-    }
-    when(io.push && (count < depth.asUInt)) {
+    when(io.pop && (count > 0.U)) {
+      // update count, head
+      count := count - 1.U
+      head := (head + 1.U) % depth.asUInt
+      // update out
+      when (count === 1.U) {
+        // when pop the last one, out = 0
+        out := 0.U
+      }.otherwise {
+        // else out = next one
+        out := queue_mem((head + 1.U) % depth.asUInt)
+      }
+      // push only when io.pop = 0
+    } .elsewhen(!io.pop && io.push && (count < depth.asUInt)) {
       // insert to queue tail and update count, tail
       queue_mem(tail) := io.dataIn
       count := count + 1.U
       tail := (tail + 1.U) % depth.asUInt
-    } .elsewhen(io.pop && (count > 0.U)) {
-      // update count, head
-      count := count - 1.U
-      head := (head + 1.U) % depth.asUInt
-      // update pop_occurred in next cycle
-      pop_occurred := RegNext(true.B)
+      // update out when first insert to queue
+      when (count === 0.U) {
+        out := io.dataIn
+      }
     }
   }
 
